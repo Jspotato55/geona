@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>한글 ↔ 건어 (건아 언어라는 뜻) 변환기</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      padding: 30px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .output {
+      margin-top: 20px;
+      background: white;
+      padding: 15px;
+      min-height: 80px;
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+    }
+
+    hr {
+      margin: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 한글 → 암호 -->
+  <h2>한글 → 건어 (건아 언어라는 뜻)</h2>
+
+  <textarea id="inputText" placeholder="건어로 변환할 한국어를 적어보세요! (띄어쓰기 등 다른 글자는 인식하지 못합니다.)"></textarea>
+  <br>
+  <button onclick="runEncrypt()">변환</button>
+
+  <div class="output" id="outputText"></div>
+
+  <hr>
+
+  <!-- 암호 → 한글 -->
+  <h2>건어 (건아 언어라는 뜻) → 한글</h2>
+
+  <textarea id="cipherInput" placeholder="채팅방에 친구가 뿌린 건어를 붙여넣으세요!"></textarea>
+  <br>
+  <button onclick="runDecrypt()">변환</button>
+
+  <div class="output" id="decryptOutput"></div>
+
+  <script>
+    const baseHangulStart = 0xAC00; // 가
+    const baseHangulEnd   = 0xD7A3; // 힣
+
+    const jamoStart = 0x3131; // ㄱ
+    const jamoEnd   = 0x3163; // ㅣ
+
+    const jamoOffset = 1421;
+    const digitMap = ["김", "건", "긁", "빌", "깋"];
+
+    const reverseDigitMap = {
+      "김": "0",
+      "건": "1",
+      "긁": "2",
+      "빌": "3",
+      "깋": "4"
+    };
+
+    function encryptHangul(input) {
+      let result = [];
+
+      for (let ch of input) {
+        const code = ch.charCodeAt(0);
+        let number = null;
+
+        if (code >= baseHangulStart && code <= baseHangulEnd) {
+          number = code - baseHangulStart;
+        } else if (code >= jamoStart && code <= jamoEnd) {
+          number = code - jamoOffset;
+        } else {
+          continue;
+        }
+
+        let base5 = number.toString(5);
+        let encoded = "";
+
+        for (let digit of base5) {
+          encoded += digitMap[Number(digit)];
+        }
+
+        result.push(encoded);
+      }
+
+      return result.join(" ");
+    }
+
+    function decryptCipher(input) {
+      let parts = input.trim().split(/\s+/);
+      let result = "";
+
+      for (let part of parts) {
+        let base5 = "";
+
+        for (let ch of part) {
+          if (!(ch in reverseDigitMap)) {
+            base5 = null;
+            break;
+          }
+          base5 += reverseDigitMap[ch];
+        }
+
+        if (base5 === null) continue;
+
+        let number = parseInt(base5, 5);
+
+        // 가~힣
+        if (number >= 0 && number <= 11171) {
+          result += String.fromCharCode(number + baseHangulStart);
+        }
+        // 자모
+        else if (number >= 11172 && number <= 11222) {
+          result += String.fromCharCode(number + jamoOffset);
+        }
+      }
+
+      return result;
+    }
+
+    function runEncrypt() {
+      const input = document.getElementById("inputText").value;
+      document.getElementById("outputText").innerText = encryptHangul(input);
+    }
+
+    function runDecrypt() {
+      const input = document.getElementById("cipherInput").value;
+      document.getElementById("decryptOutput").innerText = decryptCipher(input);
+    }
+  </script>
+
+</body>
+</html>
