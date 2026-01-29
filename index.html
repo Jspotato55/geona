@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>한글 ↔ 건어 (건아 언어라는 뜻) 변환기</title>
+  <title>한글 ↔ 가나라마바사 암호 변환기</title>
   <style>
     body {
       font-family: sans-serif;
@@ -46,9 +46,9 @@
 <body>
 
   <!-- 한글 → 암호 -->
-  <h2>한글 → 건어 (건아 언어라는 뜻)</h2>
+  <h2>한글 → 가나라마바사 암호</h2>
 
-  <textarea id="inputText" placeholder="건어로 변환할 한국어를 적어보세요! (띄어쓰기 등 다른 글자는 인식하지 못합니다.)"></textarea>
+  <textarea id="inputText" placeholder="한글을 입력해 줘 (가~힣, ㄱ~ㅎ, ㅏ~ㅣ만 인식)"></textarea>
   <br>
   <button onclick="runEncrypt()">변환</button>
 
@@ -57,9 +57,9 @@
   <hr>
 
   <!-- 암호 → 한글 -->
-  <h2>건어 (건아 언어라는 뜻) → 한글</h2>
+  <h2>가나라마바사 암호 → 한글</h2>
 
-  <textarea id="cipherInput" placeholder="채팅방에 친구가 뿌린 건어를 붙여넣으세요!"></textarea>
+  <textarea id="cipherInput" placeholder="가 나 다 라 마 바 사 로 이루어진 암호를 입력해 줘 (글자 단위는 공백으로 구분)"></textarea>
   <br>
   <button onclick="runDecrypt()">변환</button>
 
@@ -73,14 +73,18 @@
     const jamoEnd   = 0x3163; // ㅣ
 
     const jamoOffset = 1421;
-    const digitMap = ["김", "건", "긁", "빌", "깋"];
+
+    // 🔥 7진법 매핑
+    const digitMap = ["가", "나", "다", "라", "마", "바", "사"];
 
     const reverseDigitMap = {
-      "김": "0",
-      "건": "1",
-      "긁": "2",
-      "빌": "3",
-      "깋": "4"
+      "가": "0",
+      "나": "1",
+      "다": "2",
+      "라": "3",
+      "마": "4",
+      "바": "5",
+      "사": "6"
     };
 
     function encryptHangul(input) {
@@ -98,10 +102,11 @@
           continue;
         }
 
-        let base5 = number.toString(5);
+        // 🔥 7진법 변환
+        let base7 = number.toString(7);
         let encoded = "";
 
-        for (let digit of base5) {
+        for (let digit of base7) {
           encoded += digitMap[Number(digit)];
         }
 
@@ -116,26 +121,24 @@
       let result = "";
 
       for (let part of parts) {
-        let base5 = "";
+        let base7 = "";
 
         for (let ch of part) {
           if (!(ch in reverseDigitMap)) {
-            base5 = null;
+            base7 = null;
             break;
           }
-          base5 += reverseDigitMap[ch];
+          base7 += reverseDigitMap[ch];
         }
 
-        if (base5 === null) continue;
+        if (base7 === null) continue;
 
-        let number = parseInt(base5, 5);
+        // 🔥 7진법 복원
+        let number = parseInt(base7, 7);
 
-        // 가~힣
         if (number >= 0 && number <= 11171) {
           result += String.fromCharCode(number + baseHangulStart);
-        }
-        // 자모
-        else if (number >= 11172 && number <= 11222) {
+        } else if (number >= 11172 && number <= 11222) {
           result += String.fromCharCode(number + jamoOffset);
         }
       }
