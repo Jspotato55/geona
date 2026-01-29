@@ -1,161 +1,125 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>한글 ↔ 가나라마바사 암호 변환기</title>
+  <meta charset="UTF-8" />
+  <title>한글 ↔ 가나다라마바사 암호</title>
   <style>
     body {
       font-family: sans-serif;
-      background: #f5f5f5;
-      padding: 30px;
+      padding: 20px;
     }
-
-    h2 {
-      margin-bottom: 10px;
-    }
-
     textarea {
       width: 100%;
-      height: 120px;
-      font-size: 16px;
-      padding: 10px;
-      box-sizing: border-box;
+      height: 80px;
+      margin-bottom: 10px;
     }
-
     button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
+      margin-bottom: 20px;
     }
-
-    .output {
-      margin-top: 20px;
-      background: white;
-      padding: 15px;
-      min-height: 80px;
+    .result {
       white-space: pre-wrap;
-      border: 1px solid #ccc;
-    }
-
-    hr {
-      margin: 40px 0;
+      background: #f5f5f5;
+      padding: 10px;
     }
   </style>
 </head>
 <body>
 
-  <!-- 한글 → 암호 -->
-  <h2>한글 → 가나라마바사 암호</h2>
+<h2>한글 → 가나다라마바사 암호</h2>
+<textarea id="encodeInput" placeholder="한글 입력"></textarea>
+<button onclick="encode()">변환</button>
+<div id="encodeResult" class="result"></div>
 
-  <textarea id="inputText" placeholder="한글을 입력해 줘 (가~힣, ㄱ~ㅎ, ㅏ~ㅣ만 인식)"></textarea>
-  <br>
-  <button onclick="runEncrypt()">변환</button>
+<hr>
 
-  <div class="output" id="outputText"></div>
+<h2>가나다라마바사 암호 → 한글</h2>
+<textarea id="decodeInput" placeholder="가나다라마바사 암호 입력 (공백으로 구분)"></textarea>
+<button onclick="decode()">변환</button>
+<div id="decodeResult" class="result"></div>
 
-  <hr>
+<script>
+  const digits = ['가', '나', '다', '라', '마', '바', '사'];
+  const digitMap = Object.fromEntries(digits.map((d, i) => [d, i]));
 
-  <!-- 암호 → 한글 -->
-  <h2>가나라마바사 암호 → 한글</h2>
+  function charToNumber(ch) {
+    const code = ch.codePointAt(0);
 
-  <textarea id="cipherInput" placeholder="가 나 다 라 마 바 사 로 이루어진 암호를 입력해 줘 (글자 단위는 공백으로 구분)"></textarea>
-  <br>
-  <button onclick="runDecrypt()">변환</button>
+    if (code >= 0xAC00 && code <= 0xD7A3) {
+      return code - 0xAC00;
+    }
+    if (code >= 0x3131 && code <= 0x314E) {
+      return 11172 + (code - 0x3131);
+    }
+    if (code >= 0x314F && code <= 0x3163) {
+      return 11186 + (code - 0x314F);
+    }
+    return null;
+  }
 
-  <div class="output" id="decryptOutput"></div>
+  function numberToChar(num) {
+    if (num >= 0 && num <= 11171) {
+      return String.fromCodePoint(0xAC00 + num);
+    }
+    if (num >= 11172 && num <= 11185) {
+      return String.fromCodePoint(0x3131 + (num - 11172));
+    }
+    if (num >= 11186 && num <= 11206) {
+      return String.fromCodePoint(0x314F + (num - 11186));
+    }
+    return '';
+  }
 
-  <script>
-    const baseHangulStart = 0xAC00; // 가
-    const baseHangulEnd   = 0xD7A3; // 힣
+  function toBase7(num) {
+    if (num === 0) return '가';
+    let result = '';
+    while (num > 0) {
+      result = digits[num % 7] + result;
+      num = Math.floor(num / 7);
+    }
+    return result;
+  }
 
-    const jamoStart = 0x3131; // ㄱ
-    const jamoEnd   = 0x3163; // ㅣ
+  function fromBase7(str) {
+    let num = 0;
+    for (const ch of str) {
+      num = num * 7 + digitMap[ch];
+    }
+    return num;
+  }
 
-    const jamoOffset = 1421;
+  function encode() {
+    const input = document.getElementById('encodeInput').value;
+    const output = [];
 
-    // 🔥 7진법 매핑
-    const digitMap = ["가", "나", "다", "라", "마", "바", "사"];
-
-    const reverseDigitMap = {
-      "가": "0",
-      "나": "1",
-      "다": "2",
-      "라": "3",
-      "마": "4",
-      "바": "5",
-      "사": "6"
-    };
-
-    function encryptHangul(input) {
-      let result = [];
-
-      for (let ch of input) {
-        const code = ch.charCodeAt(0);
-        let number = null;
-
-        if (code >= baseHangulStart && code <= baseHangulEnd) {
-          number = code - baseHangulStart;
-        } else if (code >= jamoStart && code <= jamoEnd) {
-          number = code - jamoOffset;
-        } else {
-          continue;
-        }
-
-        // 🔥 7진법 변환
-        let base7 = number.toString(7);
-        let encoded = "";
-
-        for (let digit of base7) {
-          encoded += digitMap[Number(digit)];
-        }
-
-        result.push(encoded);
+    for (const ch of input) {
+      const num = charToNumber(ch);
+      if (num !== null) {
+        output.push(toBase7(num));
       }
-
-      return result.join(" ");
     }
 
-    function decryptCipher(input) {
-      let parts = input.trim().split(/\s+/);
-      let result = "";
+    document.getElementById('encodeResult').innerText =
+      output.join(' ');
+  }
 
-      for (let part of parts) {
-        let base7 = "";
-
-        for (let ch of part) {
-          if (!(ch in reverseDigitMap)) {
-            base7 = null;
-            break;
-          }
-          base7 += reverseDigitMap[ch];
-        }
-
-        if (base7 === null) continue;
-
-        // 🔥 7진법 복원
-        let number = parseInt(base7, 7);
-
-        if (number >= 0 && number <= 11171) {
-          result += String.fromCharCode(number + baseHangulStart);
-        } else if (number >= 11172 && number <= 11222) {
-          result += String.fromCharCode(number + jamoOffset);
-        }
-      }
-
-      return result;
+  function decode() {
+    const input = document.getElementById('decodeInput').value.trim();
+    if (!input) {
+      document.getElementById('decodeResult').innerText = '';
+      return;
     }
 
-    function runEncrypt() {
-      const input = document.getElementById("inputText").value;
-      document.getElementById("outputText").innerText = encryptHangul(input);
+    const parts = input.split(/\s+/);
+    let result = '';
+
+    for (const part of parts) {
+      const num = fromBase7(part);
+      result += numberToChar(num);
     }
 
-    function runDecrypt() {
-      const input = document.getElementById("cipherInput").value;
-      document.getElementById("decryptOutput").innerText = decryptCipher(input);
-    }
-  </script>
+    document.getElementById('decodeResult').innerText = result;
+  }
+</script>
 
 </body>
 </html>
