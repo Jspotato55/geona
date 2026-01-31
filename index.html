@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>한글 ↔ 건어 변환기 (11307 → 8진, 실시간)</title>
+  <title>한글 ↔ 건어 변환기 (v1.3)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -29,17 +29,17 @@
 </head>
 <body>
 
-<h2>문자 → 건어 (실시간)</h2>
+<h2>문자 → 건어</h2>
 <textarea id="inputText"
-  placeholder="문자를 입력하면 즉시 건어로 변환돼!"
+  placeholder="건어로 변환할 한국어를 적어보세요!"
   oninput="runEncrypt()"></textarea>
 <div class="output" id="outputText"></div>
 
 <hr>
 
-<h2>건어 → 문자 (실시간)</h2>
+<h2>건어 → 문자</h2>
 <textarea id="cipherInput"
-  placeholder="건어를 입력하면 즉시 원문이 나와!"
+  placeholder="채팅방에 친구가 뿌린 건어를 붙여넣으세요!"
   oninput="runDecrypt()"></textarea>
 <div class="output" id="decryptOutput"></div>
 
@@ -142,3 +142,4 @@ function runDecrypt() {
 
 </body>
 </html>
+
