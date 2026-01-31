@@ -2,18 +2,13 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>한글 ↔ 건어 (건아 언어라는 뜻) 변환기</title>
+  <title>한글 ↔ 건어 변환기 (11307 → 8진)</title>
   <style>
     body {
       font-family: sans-serif;
       background: #f5f5f5;
       padding: 30px;
     }
-
-    h2 {
-      margin-bottom: 10px;
-    }
-
     textarea {
       width: 100%;
       height: 120px;
@@ -21,14 +16,12 @@
       padding: 10px;
       box-sizing: border-box;
     }
-
     button {
       margin-top: 10px;
       padding: 10px 20px;
       font-size: 16px;
       cursor: pointer;
     }
-
     .output {
       margin-top: 20px;
       background: white;
@@ -37,146 +30,116 @@
       white-space: pre-wrap;
       border: 1px solid #ccc;
     }
-
-    hr {
-      margin: 40px 0;
-    }
+    hr { margin: 40px 0; }
   </style>
 </head>
 <body>
 
-  <!-- 한글 → 암호 -->
-  <h2>한글 → 건어 (건아 언어라는 뜻)</h2>
+<h2>문자 → 건어</h2>
+<textarea id="inputText"></textarea>
+<button onclick="runEncrypt()">변환</button>
+<div class="output" id="outputText"></div>
 
-  <textarea id="inputText" placeholder="건어로 변환할 한국어를 적어보세요! (띄어쓰기 등 다른 글자는 인식하지 못합니다.)"></textarea>
-  <br>
-  <button onclick="runEncrypt()">변환</button>
+<hr>
 
-  <div class="output" id="outputText"></div>
+<h2>건어 → 문자</h2>
+<textarea id="cipherInput"></textarea>
+<button onclick="runDecrypt()">변환</button>
+<div class="output" id="decryptOutput"></div>
 
-  <hr>
+<script>
+/* ================= 문자 테이블 ================= */
 
-  <!-- 암호 → 한글 -->
-  <h2>건어 (건아 언어라는 뜻) → 한글</h2>
+const charList = [];
 
-  <textarea id="cipherInput" placeholder="채팅방에 친구가 뿌린 건어를 붙여넣으세요!"></textarea>
-  <br>
-  <button onclick="runDecrypt()">변환</button>
+// 한글 완성형
+for (let i = 0xAC00; i <= 0xD7A3; i++) {
+  charList.push(String.fromCharCode(i));
+}
 
-  <div class="output" id="decryptOutput"></div>
+// 한글 자모
+for (let i = 0x3131; i <= 0x3163; i++) {
+  charList.push(String.fromCharCode(i));
+}
 
-  <script>
-    const baseHangulStart = 0xAC00; // 가
-    const baseHangulEnd   = 0xD7A3; // 힣
+// 영어
+for (let i = 65; i <= 90; i++) charList.push(String.fromCharCode(i));
+for (let i = 97; i <= 122; i++) charList.push(String.fromCharCode(i));
 
-    const jamoStart = 0x3131; // ㄱ
-    const jamoEnd   = 0x3163; // ㅣ
+// 숫자
+for (let i = 48; i <= 57; i++) charList.push(String.fromCharCode(i));
 
-    const jamoOffset = 1421;
+// ASCII 특수문자
+for (let i = 33; i <= 47; i++) charList.push(String.fromCharCode(i));
+for (let i = 58; i <= 64; i++) charList.push(String.fromCharCode(i));
+for (let i = 91; i <= 96; i++) charList.push(String.fromCharCode(i));
+for (let i = 123; i <= 126; i++) charList.push(String.fromCharCode(i));
 
-    // 🔥 8진법 매핑
-    const digitMap = ["김", "건", "긁", "빌", "깋", "히", "하", "알"];
+// 공백
+charList.push(" ");
 
-    const reverseDigitMap = {
-      "김": "0",
-      "건": "1",
-      "긁": "2",
-      "빌": "3",
-      "깋": "4",
-      "히": "5",
-      "하": "6",
-      "알": "7"
-    };
+const BASE = BigInt(charList.length); // 11307
 
-    // 🔹 영문 + 특수문자 직접 매핑
-    const extraChars = [
-      ..."abcdefghijklmnopqrstuvwxyz",
-      ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-      "!", "\"", "#", "$", "%", "&", "'", "(", ")",
-      "*", "+", ",", "-", ".", "/",
-      ":", ";", "<", "=", ">", "?",
-      "@",
-      "[", "\\", "]", "^", "_",
-      "`",
-      "{", "|", "}", "~"
-    ];
+const charToIndex = {};
+charList.forEach((c, i) => charToIndex[c] = BigInt(i));
 
-    const extraBaseOffset = 11223;
+/* ================= 건어 8진 매핑 ================= */
 
-    function encryptHangul(input) {
-      let result = [];
+const digitMap = ["김","건","긁","빌","깋","히","하","알"];
+const reverseDigitMap = {
+  "김":0,"건":1,"긁":2,"빌":3,"깋":4,"히":5,"하":6,"알":7
+};
 
-      for (let ch of input) {
-        const code = ch.charCodeAt(0);
-        let number = null;
+/* ================= 암호화 ================= */
 
-        if (code >= baseHangulStart && code <= baseHangulEnd) {
-          number = code - baseHangulStart;
-        } else if (code >= jamoStart && code <= jamoEnd) {
-          number = code - jamoOffset;
-        } else if (extraChars.includes(ch)) {
-          number = extraBaseOffset + extraChars.indexOf(ch);
-        } else {
-          continue;
-        }
+function encrypt(text) {
+  let num = 0n;
 
-        let base8 = number.toString(8);
-        let encoded = "";
+  for (let ch of text) {
+    if (!(ch in charToIndex)) continue;
+    num = num * BASE + charToIndex[ch];
+  }
 
-        for (let digit of base8) {
-          encoded += digitMap[Number(digit)];
-        }
+  if (num === 0n) return "";
 
-        result.push(encoded);
-      }
+  let out = "";
+  while (num > 0n) {
+    out = digitMap[Number(num % 8n)] + out;
+    num /= 8n;
+  }
+  return out;
+}
 
-      return result.join(" ");
-    }
+/* ================= 복호화 ================= */
 
-    function decryptCipher(input) {
-      let parts = input.trim().split(/\s+/);
-      let result = "";
+function decrypt(cipher) {
+  let num = 0n;
+  for (let ch of cipher) {
+    if (!(ch in reverseDigitMap)) continue;
+    num = num * 8n + BigInt(reverseDigitMap[ch]);
+  }
 
-      for (let part of parts) {
-        let base8 = "";
+  let out = "";
+  while (num > 0n) {
+    const idx = num % BASE;
+    out = charList[Number(idx)] + out;
+    num /= BASE;
+  }
+  return out;
+}
 
-        for (let ch of part) {
-          if (!(ch in reverseDigitMap)) {
-            base8 = null;
-            break;
-          }
-          base8 += reverseDigitMap[ch];
-        }
+/* ================= 실행 ================= */
 
-        if (base8 === null) continue;
+function runEncrypt() {
+  document.getElementById("outputText").innerText =
+    encrypt(document.getElementById("inputText").value);
+}
 
-        let number = parseInt(base8, 8);
-
-        if (number >= 0 && number <= 11171) {
-          result += String.fromCharCode(number + baseHangulStart);
-        } else if (number >= 11172 && number <= 11222) {
-          result += String.fromCharCode(number + jamoOffset);
-        } else if (
-          number >= extraBaseOffset &&
-          number < extraBaseOffset + extraChars.length
-        ) {
-          result += extraChars[number - extraBaseOffset];
-        }
-      }
-
-      return result;
-    }
-
-    function runEncrypt() {
-      const input = document.getElementById("inputText").value;
-      document.getElementById("outputText").innerText = encryptHangul(input);
-    }
-
-    function runDecrypt() {
-      const input = document.getElementById("cipherInput").value;
-      document.getElementById("decryptOutput").innerText = decryptCipher(input);
-    }
-  </script>
+function runDecrypt() {
+  document.getElementById("decryptOutput").innerText =
+    decrypt(document.getElementById("cipherInput").value);
+}
+</script>
 
 </body>
 </html>
