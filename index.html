@@ -2,10 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>한글 ↔ 건어 변환기 (v1.3)</title>
+  <title>건어 변환기</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: "Noto Sans KR", "Apple SD Gothic Neo",
+                   "Malgun Gothic", "Segoe UI", sans-serif;
       background: #f5f5f5;
       padding: 30px;
     }
@@ -15,6 +16,7 @@
       font-size: 16px;
       padding: 10px;
       box-sizing: border-box;
+      font-family: inherit;
     }
     .output {
       margin-top: 20px;
@@ -23,6 +25,7 @@
       min-height: 80px;
       white-space: pre-wrap;
       border: 1px solid #ccc;
+      font-family: inherit;
     }
     hr { margin: 40px 0; }
   </style>
@@ -46,7 +49,8 @@
 <script>
 /* ================= 문자 테이블 ================= */
 
-const charList = [];
+// index 1부터 시작 (0은 비워둠)
+const charList = [null];
 
 // 한글 완성형
 for (let i = 0xAC00; i <= 0xD7A3; i++) {
@@ -74,10 +78,12 @@ for (let i = 123; i <= 126; i++) charList.push(String.fromCharCode(i));
 // 공백
 charList.push(" ");
 
-const BASE = BigInt(charList.length); // 11307
+const BASE = BigInt(charList.length); // 11038
 
 const charToIndex = {};
-charList.forEach((c, i) => charToIndex[c] = BigInt(i));
+charList.forEach((c, i) => {
+  if (c !== null) charToIndex[c] = BigInt(i);
+});
 
 /* ================= 건어 8진 매핑 ================= */
 
@@ -120,8 +126,8 @@ function decrypt(cipher) {
 
   let out = "";
   while (num > 0n) {
-    const idx = num % BASE;
-    out = charList[Number(idx)] + out;
+    const idx = Number(num % BASE);
+    if (idx !== 0) out = charList[idx] + out;
     num /= BASE;
   }
   return out;
@@ -130,17 +136,15 @@ function decrypt(cipher) {
 /* ================= 실시간 실행 ================= */
 
 function runEncrypt() {
-  const input = document.getElementById("inputText").value;
-  document.getElementById("outputText").innerText = encrypt(input);
+  document.getElementById("outputText").innerText =
+    encrypt(document.getElementById("inputText").value);
 }
 
 function runDecrypt() {
-  const input = document.getElementById("cipherInput").value;
-  document.getElementById("decryptOutput").innerText = decrypt(input);
+  document.getElementById("decryptOutput").innerText =
+    decrypt(document.getElementById("cipherInput").value);
 }
 </script>
 
 </body>
 </html>
-
-
