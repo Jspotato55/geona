@@ -74,7 +74,7 @@
 
     const jamoOffset = 1421;
 
-    // 🔥 7진법 매핑
+    // 🔥 8진법 매핑
     const digitMap = ["김", "건", "긁", "빌", "깋", "히", "하", "알"];
 
     const reverseDigitMap = {
@@ -88,6 +88,21 @@
       "알": "7"
     };
 
+    // 🔹 영문 + 특수문자 직접 매핑
+    const extraChars = [
+      ..."abcdefghijklmnopqrstuvwxyz",
+      ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      "!", "\"", "#", "$", "%", "&", "'", "(", ")",
+      "*", "+", ",", "-", ".", "/",
+      ":", ";", "<", "=", ">", "?",
+      "@",
+      "[", "\\", "]", "^", "_",
+      "`",
+      "{", "|", "}", "~"
+    ];
+
+    const extraBaseOffset = 11223;
+
     function encryptHangul(input) {
       let result = [];
 
@@ -99,11 +114,12 @@
           number = code - baseHangulStart;
         } else if (code >= jamoStart && code <= jamoEnd) {
           number = code - jamoOffset;
+        } else if (extraChars.includes(ch)) {
+          number = extraBaseOffset + extraChars.indexOf(ch);
         } else {
           continue;
         }
 
-        // 🔥 7진법 변환
         let base8 = number.toString(8);
         let encoded = "";
 
@@ -134,13 +150,17 @@
 
         if (base8 === null) continue;
 
-        // 🔥 7진법 복원
         let number = parseInt(base8, 8);
 
         if (number >= 0 && number <= 11171) {
           result += String.fromCharCode(number + baseHangulStart);
         } else if (number >= 11172 && number <= 11222) {
           result += String.fromCharCode(number + jamoOffset);
+        } else if (
+          number >= extraBaseOffset &&
+          number < extraBaseOffset + extraChars.length
+        ) {
+          result += extraChars[number - extraBaseOffset];
         }
       }
 
@@ -160,5 +180,3 @@
 
 </body>
 </html>
-
-
