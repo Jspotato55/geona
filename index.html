@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>한글 ↔ 건어 변환기 (11307 → 8진)</title>
+  <title>한글 ↔ 건어 변환기 (11307 → 8진, 실시간)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -15,12 +15,6 @@
       font-size: 16px;
       padding: 10px;
       box-sizing: border-box;
-    }
-    button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
     }
     .output {
       margin-top: 20px;
@@ -35,16 +29,18 @@
 </head>
 <body>
 
-<h2>문자 → 건어</h2>
-<textarea id="inputText"></textarea>
-<button onclick="runEncrypt()">변환</button>
+<h2>문자 → 건어 (실시간)</h2>
+<textarea id="inputText"
+  placeholder="문자를 입력하면 즉시 건어로 변환돼!"
+  oninput="runEncrypt()"></textarea>
 <div class="output" id="outputText"></div>
 
 <hr>
 
-<h2>건어 → 문자</h2>
-<textarea id="cipherInput"></textarea>
-<button onclick="runDecrypt()">변환</button>
+<h2>건어 → 문자 (실시간)</h2>
+<textarea id="cipherInput"
+  placeholder="건어를 입력하면 즉시 원문이 나와!"
+  oninput="runDecrypt()"></textarea>
 <div class="output" id="decryptOutput"></div>
 
 <script>
@@ -114,10 +110,13 @@ function encrypt(text) {
 
 function decrypt(cipher) {
   let num = 0n;
+
   for (let ch of cipher) {
     if (!(ch in reverseDigitMap)) continue;
     num = num * 8n + BigInt(reverseDigitMap[ch]);
   }
+
+  if (num === 0n) return "";
 
   let out = "";
   while (num > 0n) {
@@ -128,16 +127,16 @@ function decrypt(cipher) {
   return out;
 }
 
-/* ================= 실행 ================= */
+/* ================= 실시간 실행 ================= */
 
 function runEncrypt() {
-  document.getElementById("outputText").innerText =
-    encrypt(document.getElementById("inputText").value);
+  const input = document.getElementById("inputText").value;
+  document.getElementById("outputText").innerText = encrypt(input);
 }
 
 function runDecrypt() {
-  document.getElementById("decryptOutput").innerText =
-    decrypt(document.getElementById("cipherInput").value);
+  const input = document.getElementById("cipherInput").value;
+  document.getElementById("decryptOutput").innerText = decrypt(input);
 }
 </script>
 
