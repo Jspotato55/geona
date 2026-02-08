@@ -1,187 +1,250 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>건어 암호 변환기 (v1 / v2 / v3)</title>
+<meta charset="UTF-8">
+<title>건어 암호 변환기</title>
 
-  <style>
-    body {
-      font-family: "Noto Sans KR", system-ui, sans-serif;
-      background: #111;
-      color: #eee;
-      padding: 20px;
-    }
+<style>
+  body {
+    font-family: "Noto Sans KR", system-ui, sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 20px;
+  }
 
-    h1 {
-      margin-bottom: 12px;
-    }
+  textarea {
+    width: 100%;
+    height: 90px;
+    font-size: 16px;
+    font-family: inherit;
+    padding: 10px;
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 6px;
+  }
 
-    textarea {
-      width: 100%;
-      height: 90px;
-      font-size: 16px;
-      font-family: inherit;
-      padding: 10px;
-      box-sizing: border-box;
-      background: #1e1e1e;
-      color: #eee;
-      border: 1px solid #444;
-      border-radius: 6px;
-    }
+  select {
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 6px 10px;
+    font-size: 16px;
+    border-radius: 6px;
+  }
 
-    .result {
-      margin-top: 16px;
-      padding: 12px;
-      background: #1a1a1a;
-      border-radius: 6px;
-      white-space: pre-wrap;
-      font-family: inherit;
-    }
+  .result {
+    margin-top: 15px;
+  }
 
-    .label {
-      font-weight: bold;
-      margin-bottom: 6px;
-      display: block;
-      color: #8fd3ff;
-    }
-  </style>
+  .output {
+    font-size: 25px;
+    line-height: 1.4;
+    color: #ddd;
+    word-break: break-all;
+    font-weight: bold;
+  }
+
+  .label {
+    font-weight: bold;
+    color: #8fd3ff;
+    margin-bottom: 6px;
+    display: block;
+  }
+</style>
 </head>
 
 <body>
-  <h1>건어 암호 변환기</h1>
 
-  <textarea id="input" placeholder="여기에 텍스트를 입력해"></textarea>
+<h1>원문 → 건어</h1>
 
-  <div class="result">
-    <span class="label">v1 (5진법 · 한글만)</span>
-    <div id="out-v1"></div>
-  </div>
+<textarea id="encodeInput" placeholder="원문을 건어로 바꿔 보세요!"></textarea>
 
-  <div class="result">
-    <span class="label">v2 (8진법 · 한글만)</span>
-    <div id="out-v2"></div>
-  </div>
+<div class="result">
+  <span class="label">버전 선택</span>
+  <select id="encodeVersion">
+    <option value="v3">건어 v1.3</option>
+    <option value="v2">건어 v1.2</option>
+    <option value="v1">건어 v1.1</option>
+  </select>
+</div>
 
-  <div class="result">
-    <span class="label">v3 (11038진법 → 8진법)</span>
-    <div id="out-v3"></div>
-  </div>
+<div class="result">
+  <span class="label">암호 결과</span>
+  <div id="encodeOutput" class="output"></div>
+</div>
 
-  <script>
-    /* =====================
-       공통 데이터
-    ===================== */
+<hr style="margin:40px 0; border:1px solid #333;">
 
-    // 완성형 한글
-    const HANGUL_BASE = 0xAC00;
-    const HANGUL_END  = 0xD7A3;
-    const HANGUL_COUNT = HANGUL_END - HANGUL_BASE + 1;
+<h1>건어 → 원문</h1>
 
-    // 건어 문자
-    const BASE5 = ["김", "건", "긁", "빌", "깋"];
-    const BASE8 = ["김", "건", "긁", "빌", "깋", "히", "하", "알"];
+<textarea id="decodeInput" placeholder="친구가 단톡에 뿌린 건어를 해독하세요!"></textarea>
 
-    /* =====================
-       v1: 5진법
-    ===================== */
-    function encodeV1(text) {
-      const out = [];
+<div class="result">
+  <span class="label">버전 선택</span>
+  <select id="decodeVersion">
+    <option value="v3">건어 v1.3</option>
+    <option value="v2">건어 v1.2</option>
+    <option value="v1">건어 v1.1</option>
+  </select>
+</div>
 
-      for (const ch of text) {
-        const code = ch.charCodeAt(0);
-        if (code < HANGUL_BASE || code > HANGUL_END) continue;
+<div class="result">
+  <span class="label">복원 결과</span>
+  <div id="decodeOutput" class="output"></div>
+</div>
 
-        let n = code - HANGUL_BASE;
-        let encoded = "";
+<script>
+/* ===== 상수 ===== */
+const BASE5 = ["김","건","긁","빌","깋"];
+const BASE8 = ["김","건","긁","빌","깋","히","하","알"];
 
-        do {
-          encoded = BASE5[n % 5] + encoded;
-          n = Math.floor(n / 5);
-        } while (n > 0);
+const HANGUL_BASE = 0xAC00;
+const HANGUL_END  = 0xD7A3;
+const JAMO_START = 0x3131;
+const JAMO_END   = 0x3163;
+const JAMO_OFFSET = 11172;
 
-        out.push(encoded);
-      }
-      return out.join(" ");
+/* ===== 공통 ===== */
+function charToNumberV12(ch) {
+  const c = ch.charCodeAt(0);
+  if (c >= HANGUL_BASE && c <= HANGUL_END) return c - HANGUL_BASE;
+  if (c >= JAMO_START && c <= JAMO_END) return (c - JAMO_START) + JAMO_OFFSET;
+  return null;
+}
+
+function numberToCharV12(num) {
+  if (num < JAMO_OFFSET) return String.fromCharCode(HANGUL_BASE + num);
+  const j = num - JAMO_OFFSET;
+  if (j >= 0 && j <= (JAMO_END - JAMO_START)) {
+    return String.fromCharCode(JAMO_START + j);
+  }
+  return "";
+}
+
+/* ===== 암호화 ===== */
+
+
+/* ===== v3 테이블 ===== */
+const charList = [null];
+for (let i = HANGUL_BASE; i <= HANGUL_END; i++) charList.push(String.fromCharCode(i));
+for (let i = JAMO_START; i <= JAMO_END; i++) charList.push(String.fromCharCode(i));
+for (let i = 65; i <= 90; i++) charList.push(String.fromCharCode(i));
+for (let i = 97; i <= 122; i++) charList.push(String.fromCharCode(i));
+for (let i = 48; i <= 57; i++) charList.push(String.fromCharCode(i));
+for (let i = 33; i <= 126; i++) if (i !== 32) charList.push(String.fromCharCode(i));
+charList.push(" ");
+
+const TOTAL_BASE = BigInt(charList.length);
+const charToIndex = {};
+charList.forEach((c,i)=>{ if(c) charToIndex[c]=BigInt(i); });
+
+function encodeV1(text) {
+  return [...text].map(ch => {
+    const n0 = charToNumberV12(ch);
+    if (n0 === null) return "";
+    let n = n0, s = "";
+    do {
+      s = BASE5[n % 5] + s;
+      n = Math.floor(n / 5);
+    } while (n > 0);
+    return s;
+  }).filter(Boolean).join(" ");
+}
+
+function encodeV2(text) {
+  return [...text].map(ch => {
+    const n0 = charToNumberV12(ch);
+    if (n0 === null) return "";
+    let n = n0, s = "";
+    do {
+      s = BASE8[n % 8] + s;
+      n = Math.floor(n / 8);
+    } while (n > 0);
+    return s;
+  }).filter(Boolean).join(" ");
+}
+
+function encodeV3(text) {
+  let value = 0n, used = false;
+  for (const ch of text) {
+    if (!(ch in charToIndex)) continue;
+    used = true;
+    value = value * TOTAL_BASE + charToIndex[ch];
+  }
+  if (!used) return "";
+  let out = "";
+  while (value > 0n) {
+    out = BASE8[Number(value % 8n)] + out;
+    value /= 8n;
+  }
+  return out;
+}
+
+/* ===== 복호화 ===== */
+const BASE5_MAP = Object.fromEntries(BASE5.map((v,i)=>[v,i]));
+const BASE8_MAP = Object.fromEntries(BASE8.map((v,i)=>[v,i]));
+
+function decodeV1(text) {
+  return text.trim().split(/\s+/).map(p => {
+    const tokens = p.match(/김|건|긁|빌|깋/g);
+    if (!tokens) return "";   // ← 핵심
+
+    let n = 0;
+    for (const t of tokens) {
+      n = n * 5 + BASE5_MAP[t];
     }
+    return numberToCharV12(n);
+  }).join("");
+}
 
-    /* =====================
-       v2: 8진법
-    ===================== */
-    function encodeV2(text) {
-      const out = [];
 
-      for (const ch of text) {
-        const code = ch.charCodeAt(0);
-        if (code < HANGUL_BASE || code > HANGUL_END) continue;
+function decodeV2(text) {
+  return text.trim().split(/\s+/).map(p => {
+    const tokens = p.match(/김|건|긁|빌|깋|히|하|알/g);
+    if (!tokens) return "";   // ← 핵심
 
-        let n = code - HANGUL_BASE;
-        let encoded = "";
-
-        do {
-          encoded = BASE8[n % 8] + encoded;
-          n = Math.floor(n / 8);
-        } while (n > 0);
-
-        out.push(encoded);
-      }
-      return out.join(" ");
+    let n = 0;
+    for (const t of tokens) {
+      n = n * 8 + BASE8_MAP[t];
     }
+    return numberToCharV12(n);
+  }).join("");
+}
 
-    /* =====================
-       v3: 11038진법 → 8진법
-    ===================== */
 
-    const TOTAL_BASE = 11038;
+function decodeV3(text) {
+  let value=0n;
+  for(const t of text.match(/김|건|긁|빌|깋|히|하|알/g)||[]) {
+    value=value*8n+BigInt(BASE8_MAP[t]);
+  }
+  let out=[];
+  while(value>0n){ out.unshift(charList[Number(value%TOTAL_BASE)]); value/=TOTAL_BASE; }
+  return out.join("");
+}
 
-    function charToIndex(ch) {
-      const code = ch.charCodeAt(0);
-      if (code >= HANGUL_BASE && code <= HANGUL_END) {
-        return code - HANGUL_BASE;
-      }
-      if (ch === " ") return 11037;
-      return null;
-    }
+/* ===== UI 연결 ===== */
+function updateEncode() {
+  const t = encodeInput.value;
+  encodeOutput.textContent =
+    encodeVersion.value==="v1"?encodeV1(t):
+    encodeVersion.value==="v2"?encodeV2(t):
+    encodeV3(t);
+}
 
-    function encodeV3(text) {
-      const digits = [];
+function updateDecode() {
+  const t = decodeInput.value;
+  decodeOutput.textContent =
+    decodeVersion.value==="v1"?decodeV1(t):
+    decodeVersion.value==="v2"?decodeV2(t):
+    decodeV3(t);
+}
 
-      for (const ch of text) {
-        const idx = charToIndex(ch);
-        if (idx !== null) digits.push(idx);
-      }
+encodeInput.oninput = updateEncode;
+encodeVersion.onchange = updateEncode;
+decodeInput.oninput = updateDecode;
+decodeVersion.onchange = updateDecode;
+</script>
 
-      if (digits.length === 0) return "";
-
-      let value = 0n;
-      for (const d of digits) {
-        value = value * BigInt(TOTAL_BASE) + BigInt(d);
-      }
-
-      if (value === 0n) return BASE8[0];
-
-      let out = "";
-      while (value > 0n) {
-        out = BASE8[Number(value % 8n)] + out;
-        value /= 8n;
-      }
-      return out;
-    }
-
-    /* =====================
-       실시간 업데이트
-    ===================== */
-
-    const input = document.getElementById("input");
-    const outV1 = document.getElementById("out-v1");
-    const outV2 = document.getElementById("out-v2");
-    const outV3 = document.getElementById("out-v3");
-
-    input.addEventListener("input", () => {
-      const text = input.value;
-      outV1.textContent = encodeV1(text);
-      outV2.textContent = encodeV2(text);
-      outV3.textContent = encodeV3(text);
-    });
-  </script>
 </body>
 </html>
