@@ -2,11 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>건어 변환기</title>
+  <title>건어 암호 3종 비교</title>
   <style>
     body {
-      font-family: "Noto Sans KR", "Apple SD Gothic Neo",
-                   "Malgun Gothic", "Segoe UI", sans-serif;
+      font-family: "Noto Sans KR","Apple SD Gothic Neo",
+                   "Malgun Gothic","Segoe UI",sans-serif;
       background: #f5f5f5;
       padding: 30px;
     }
@@ -18,49 +18,86 @@
       box-sizing: border-box;
       font-family: inherit;
     }
-    .output {
-      margin-top: 20px;
+    .box {
       background: white;
       padding: 15px;
-      min-height: 80px;
-      white-space: pre-wrap;
+      margin-top: 20px;
       border: 1px solid #ccc;
-      font-family: inherit;
+      white-space: pre-wrap;
     }
-    hr { margin: 40px 0; }
+    h3 { margin-bottom: 5px; }
   </style>
 </head>
 <body>
 
-<h2>문자 → 건어</h2>
-<textarea id="inputText"
-  placeholder="건어로 변환할 문장을 적어보세요!"
-  oninput="runEncrypt()"></textarea>
-<div class="output" id="outputText"></div>
+<h2>텍스트 입력</h2>
+<textarea oninput="runAll()" id="inputText"
+  placeholder="입력하면 3가지 버전이 동시에 나와"></textarea>
 
-<hr>
+<div class="box">
+  <h3>v1 (5진법, 글자 단위)</h3>
+  <div id="out1"></div>
+</div>
 
-<h2>건어 → 문자</h2>
-<textarea id="cipherInput"
-  placeholder="채팅방에 친구가 뿌린 건어를 붙여넣으세요!"
-  oninput="runDecrypt()"></textarea>
-<div class="output" id="decryptOutput"></div>
+<div class="box">
+  <h3>v2 (8진법, 글자 단위)</h3>
+  <div id="out2"></div>
+</div>
+
+<div class="box">
+  <h3>v3 (11038진법 → 8진법)</h3>
+  <div id="out3"></div>
+</div>
 
 <script>
-/* ================= 문자 테이블 ================= */
+/* ================= 공통: 한글 테이블 ================= */
 
-// index 1부터 시작 (0은 비워둠)
+const hangul = [];
+for (let i = 0xAC00; i <= 0xD7A3; i++) hangul.push(String.fromCharCode(i));
+for (let i = 0x3131; i <= 0x3163; i++) hangul.push(String.fromCharCode(i));
+
+/* ================= v1 ================= */
+
+const v1Digits = ["김","건","긁","빌","깋"];
+
+function encodeV1(text) {
+  return [...text].map(ch => {
+    const idx = hangul.indexOf(ch);
+    if (idx === -1) return "";
+    let n = idx;
+    let out = "";
+    do {
+      out = v1Digits[n % 5] + out;
+      n = Math.floor(n / 5);
+    } while (n > 0);
+    return out;
+  }).filter(Boolean).join(" ");
+}
+
+/* ================= v2 ================= */
+
+const v2Digits = ["김","건","긁","빌","깋","히","하","알"];
+
+function encodeV2(text) {
+  return [...text].map(ch => {
+    const idx = hangul.indexOf(ch);
+    if (idx === -1) return "";
+    let n = idx;
+    let out = "";
+    do {
+      out = v2Digits[n % 8] + out;
+      n = Math.floor(n / 8);
+    } while (n > 0);
+    return out;
+  }).filter(Boolean).join(" ");
+}
+
+/* ================= v3 ================= */
+
 const charList = [null];
 
-// 한글 완성형
-for (let i = 0xAC00; i <= 0xD7A3; i++) {
-  charList.push(String.fromCharCode(i));
-}
-
-// 한글 자모
-for (let i = 0x3131; i <= 0x3163; i++) {
-  charList.push(String.fromCharCode(i));
-}
+// 한글
+hangul.forEach(c => charList.push(c));
 
 // 영어
 for (let i = 65; i <= 90; i++) charList.push(String.fromCharCode(i));
@@ -69,7 +106,7 @@ for (let i = 97; i <= 122; i++) charList.push(String.fromCharCode(i));
 // 숫자
 for (let i = 48; i <= 57; i++) charList.push(String.fromCharCode(i));
 
-// ASCII 특수문자
+// 특수문자
 for (let i = 33; i <= 47; i++) charList.push(String.fromCharCode(i));
 for (let i = 58; i <= 64; i++) charList.push(String.fromCharCode(i));
 for (let i = 91; i <= 96; i++) charList.push(String.fromCharCode(i));
@@ -78,71 +115,33 @@ for (let i = 123; i <= 126; i++) charList.push(String.fromCharCode(i));
 // 공백
 charList.push(" ");
 
-const BASE = BigInt(charList.length); // 11038
+const BASE = BigInt(charList.length);
+const map = {};
+charList.forEach((c, i) => { if (c) map[c] = BigInt(i); });
 
-const charToIndex = {};
-charList.forEach((c, i) => {
-  if (c !== null) charToIndex[c] = BigInt(i);
-});
-
-/* ================= 건어 8진 매핑 ================= */
-
-const digitMap = ["김","건","긁","빌","깋","히","하","알"];
-const reverseDigitMap = {
-  "김":0,"건":1,"긁":2,"빌":3,"깋":4,"히":5,"하":6,"알":7
-};
-
-/* ================= 암호화 ================= */
-
-function encrypt(text) {
+function encodeV3(text) {
   let num = 0n;
-
   for (let ch of text) {
-    if (!(ch in charToIndex)) continue;
-    num = num * BASE + charToIndex[ch];
+    if (!(ch in map)) continue;
+    num = num * BASE + map[ch];
   }
-
   if (num === 0n) return "";
 
   let out = "";
   while (num > 0n) {
-    out = digitMap[Number(num % 8n)] + out;
+    out = v2Digits[Number(num % 8n)] + out;
     num /= 8n;
   }
   return out;
 }
 
-/* ================= 복호화 ================= */
+/* ================= 실행 ================= */
 
-function decrypt(cipher) {
-  let num = 0n;
-
-  for (let ch of cipher) {
-    if (!(ch in reverseDigitMap)) continue;
-    num = num * 8n + BigInt(reverseDigitMap[ch]);
-  }
-
-  if (num === 0n) return "";
-
-  let out = "";
-  while (num > 0n) {
-    const idx = Number(num % BASE);
-    if (idx !== 0) out = charList[idx] + out;
-    num /= BASE;
-  }
-  return out;
-}
-
-/* ================= 실시간 실행 ================= */
-
-function runEncrypt() {
-  document.getElementById("outputText").innerText =
-    encrypt(document.getElementById("inputText").value);
-}
-
-function runDecrypt() {
-  document.getElementById("decryptOutput").innerText =
-    decrypt(document.getElementById("cipherInput").value);
+function runAll() {
+  const t = document.getElementById("inputText").value;
+  document.getElementById("out1").innerText = encodeV1(t);
+  document.getElementById("out2").innerText = encodeV2(t);
+  document.getElementById("out3").innerText = encodeV3(t);
 }
 </script>
 
