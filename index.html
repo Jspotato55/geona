@@ -1,149 +1,187 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>건어 암호 3종 비교</title>
+  <meta charset="UTF-8" />
+  <title>건어 암호 변환기 (v1 / v2 / v3)</title>
+
   <style>
     body {
-      font-family: "Noto Sans KR","Apple SD Gothic Neo",
-                   "Malgun Gothic","Segoe UI",sans-serif;
-      background: #f5f5f5;
-      padding: 30px;
+      font-family: "Noto Sans KR", system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+      padding: 20px;
     }
+
+    h1 {
+      margin-bottom: 12px;
+    }
+
     textarea {
       width: 100%;
-      height: 120px;
+      height: 90px;
       font-size: 16px;
+      font-family: inherit;
       padding: 10px;
       box-sizing: border-box;
+      background: #1e1e1e;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 6px;
+    }
+
+    .result {
+      margin-top: 16px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      white-space: pre-wrap;
       font-family: inherit;
     }
-    .box {
-      background: white;
-      padding: 15px;
-      margin-top: 20px;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
+
+    .label {
+      font-weight: bold;
+      margin-bottom: 6px;
+      display: block;
+      color: #8fd3ff;
     }
-    h3 { margin-bottom: 5px; }
   </style>
 </head>
+
 <body>
+  <h1>건어 암호 변환기</h1>
 
-<h2>텍스트 입력</h2>
-<textarea oninput="runAll()" id="inputText"
-  placeholder="입력하면 3가지 버전이 동시에 나와"></textarea>
+  <textarea id="input" placeholder="여기에 텍스트를 입력해"></textarea>
 
-<div class="box">
-  <h3>v1 (5진법, 글자 단위)</h3>
-  <div id="out1"></div>
-</div>
+  <div class="result">
+    <span class="label">v1 (5진법 · 한글만)</span>
+    <div id="out-v1"></div>
+  </div>
 
-<div class="box">
-  <h3>v2 (8진법, 글자 단위)</h3>
-  <div id="out2"></div>
-</div>
+  <div class="result">
+    <span class="label">v2 (8진법 · 한글만)</span>
+    <div id="out-v2"></div>
+  </div>
 
-<div class="box">
-  <h3>v3 (11038진법 → 8진법)</h3>
-  <div id="out3"></div>
-</div>
+  <div class="result">
+    <span class="label">v3 (11038진법 → 8진법)</span>
+    <div id="out-v3"></div>
+  </div>
 
-<script>
-/* ================= 공통: 한글 테이블 ================= */
+  <script>
+    /* =====================
+       공통 데이터
+    ===================== */
 
-const hangul = [];
-for (let i = 0xAC00; i <= 0xD7A3; i++) hangul.push(String.fromCharCode(i));
-for (let i = 0x3131; i <= 0x3163; i++) hangul.push(String.fromCharCode(i));
+    // 완성형 한글
+    const HANGUL_BASE = 0xAC00;
+    const HANGUL_END  = 0xD7A3;
+    const HANGUL_COUNT = HANGUL_END - HANGUL_BASE + 1;
 
-/* ================= v1 ================= */
+    // 건어 문자
+    const BASE5 = ["김", "건", "긁", "빌", "깋"];
+    const BASE8 = ["김", "건", "긁", "빌", "깋", "히", "하", "알"];
 
-const v1Digits = ["김","건","긁","빌","깋"];
+    /* =====================
+       v1: 5진법
+    ===================== */
+    function encodeV1(text) {
+      const out = [];
 
-function encodeV1(text) {
-  return [...text].map(ch => {
-    const idx = hangul.indexOf(ch);
-    if (idx === -1) return "";
-    let n = idx;
-    let out = "";
-    do {
-      out = v1Digits[n % 5] + out;
-      n = Math.floor(n / 5);
-    } while (n > 0);
-    return out;
-  }).filter(Boolean).join(" ");
-}
+      for (const ch of text) {
+        const code = ch.charCodeAt(0);
+        if (code < HANGUL_BASE || code > HANGUL_END) continue;
 
-/* ================= v2 ================= */
+        let n = code - HANGUL_BASE;
+        let encoded = "";
 
-const v2Digits = ["김","건","긁","빌","깋","히","하","알"];
+        do {
+          encoded = BASE5[n % 5] + encoded;
+          n = Math.floor(n / 5);
+        } while (n > 0);
 
-function encodeV2(text) {
-  return [...text].map(ch => {
-    const idx = hangul.indexOf(ch);
-    if (idx === -1) return "";
-    let n = idx;
-    let out = "";
-    do {
-      out = v2Digits[n % 8] + out;
-      n = Math.floor(n / 8);
-    } while (n > 0);
-    return out;
-  }).filter(Boolean).join(" ");
-}
+        out.push(encoded);
+      }
+      return out.join(" ");
+    }
 
-/* ================= v3 ================= */
+    /* =====================
+       v2: 8진법
+    ===================== */
+    function encodeV2(text) {
+      const out = [];
 
-const charList = [null];
+      for (const ch of text) {
+        const code = ch.charCodeAt(0);
+        if (code < HANGUL_BASE || code > HANGUL_END) continue;
 
-// 한글
-hangul.forEach(c => charList.push(c));
+        let n = code - HANGUL_BASE;
+        let encoded = "";
 
-// 영어
-for (let i = 65; i <= 90; i++) charList.push(String.fromCharCode(i));
-for (let i = 97; i <= 122; i++) charList.push(String.fromCharCode(i));
+        do {
+          encoded = BASE8[n % 8] + encoded;
+          n = Math.floor(n / 8);
+        } while (n > 0);
 
-// 숫자
-for (let i = 48; i <= 57; i++) charList.push(String.fromCharCode(i));
+        out.push(encoded);
+      }
+      return out.join(" ");
+    }
 
-// 특수문자
-for (let i = 33; i <= 47; i++) charList.push(String.fromCharCode(i));
-for (let i = 58; i <= 64; i++) charList.push(String.fromCharCode(i));
-for (let i = 91; i <= 96; i++) charList.push(String.fromCharCode(i));
-for (let i = 123; i <= 126; i++) charList.push(String.fromCharCode(i));
+    /* =====================
+       v3: 11038진법 → 8진법
+    ===================== */
 
-// 공백
-charList.push(" ");
+    const TOTAL_BASE = 11038;
 
-const BASE = BigInt(charList.length);
-const map = {};
-charList.forEach((c, i) => { if (c) map[c] = BigInt(i); });
+    function charToIndex(ch) {
+      const code = ch.charCodeAt(0);
+      if (code >= HANGUL_BASE && code <= HANGUL_END) {
+        return code - HANGUL_BASE;
+      }
+      if (ch === " ") return 11037;
+      return null;
+    }
 
-function encodeV3(text) {
-  let num = 0n;
-  for (let ch of text) {
-    if (!(ch in map)) continue;
-    num = num * BASE + map[ch];
-  }
-  if (num === 0n) return "";
+    function encodeV3(text) {
+      const digits = [];
 
-  let out = "";
-  while (num > 0n) {
-    out = v2Digits[Number(num % 8n)] + out;
-    num /= 8n;
-  }
-  return out;
-}
+      for (const ch of text) {
+        const idx = charToIndex(ch);
+        if (idx !== null) digits.push(idx);
+      }
 
-/* ================= 실행 ================= */
+      if (digits.length === 0) return "";
 
-function runAll() {
-  const t = document.getElementById("inputText").value;
-  document.getElementById("out1").innerText = encodeV1(t);
-  document.getElementById("out2").innerText = encodeV2(t);
-  document.getElementById("out3").innerText = encodeV3(t);
-}
-</script>
+      let value = 0n;
+      for (const d of digits) {
+        value = value * BigInt(TOTAL_BASE) + BigInt(d);
+      }
 
+      if (value === 0n) return BASE8[0];
+
+      let out = "";
+      while (value > 0n) {
+        out = BASE8[Number(value % 8n)] + out;
+        value /= 8n;
+      }
+      return out;
+    }
+
+    /* =====================
+       실시간 업데이트
+    ===================== */
+
+    const input = document.getElementById("input");
+    const outV1 = document.getElementById("out-v1");
+    const outV2 = document.getElementById("out-v2");
+    const outV3 = document.getElementById("out-v3");
+
+    input.addEventListener("input", () => {
+      const text = input.value;
+      outV1.textContent = encodeV1(text);
+      outV2.textContent = encodeV2(text);
+      outV3.textContent = encodeV3(text);
+    });
+  </script>
 </body>
 </html>
