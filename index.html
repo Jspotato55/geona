@@ -63,6 +63,7 @@
 <div class="result">
   <span class="label">버전 선택</span>
   <select id="encodeVersion">
+    <option value="v4">건어 v1.4</option>
     <option value="v3">건어 v1.3</option>
     <option value="v2">건어 v1.2</option>
     <option value="v1">건어 v1.1</option>
@@ -83,6 +84,7 @@
 <div class="result">
   <span class="label">버전 선택</span>
   <select id="decodeVersion">
+    <option value="v4">건어 v1.4</option>
     <option value="v3">건어 v1.3</option>
     <option value="v2">건어 v1.2</option>
     <option value="v1">건어 v1.1</option>
@@ -98,6 +100,7 @@
 /* ===== 상수 ===== */
 const BASE5 = ["김","건","긁","빌","깋"];
 const BASE8 = ["김","건","긁","빌","깋","히","하","알"];
+const BASE22 = ["김","건","긁","빌","깋","히","하","알","르","구","눈","우","섬","응","샤","겧","누","햏","느","네","따","는."];
 
 const HANGUL_BASE = 0xAC00;
 const HANGUL_END  = 0xD7A3;
@@ -181,9 +184,26 @@ function encodeV3(text) {
   return out;
 }
 
+function encodeV4(text) {
+  let value = 0n, used = false;
+  for (const ch of text) {
+    if (!(ch in charToIndex)) continue;
+    used = true;
+    value = value * TOTAL_BASE + charToIndex[ch];
+  }
+  if (!used) return "";
+  let out = "";
+  while (value > 0n) {
+    out = BASE22[Number(value % 22n)] + out;
+    value /= 22n;
+  }
+  return out;
+}
+
 /* ===== 복호화 ===== */
 const BASE5_MAP = Object.fromEntries(BASE5.map((v,i)=>[v,i]));
 const BASE8_MAP = Object.fromEntries(BASE8.map((v,i)=>[v,i]));
+const BASE22_MAP = Object.fromEntries(BASE22.map((v,i)=>[v,i]));
 
 function decodeV1(text) {
   return text.trim().split(/\s+/).map(p => {
@@ -223,13 +243,24 @@ function decodeV3(text) {
   return out.join("");
 }
 
+function decodeV4(text) {
+  let value=0n;
+  for(const t of text.match(/김|건|긁|빌|깋|히|하|알|르|구|눈|우|섬|응|샤|겧|누|햏|느|네|따|는./g)||[]) {
+    value=value*22n+BigInt(BASE22_MAP[t]);
+  }
+  let out=[];
+  while(value>0n){ out.unshift(charList[Number(value%TOTAL_BASE)]); value/=TOTAL_BASE; }
+  return out.join("");
+}
+
 /* ===== UI 연결 ===== */
 function updateEncode() {
   const t = encodeInput.value;
   encodeOutput.textContent =
     encodeVersion.value==="v1"?encodeV1(t):
     encodeVersion.value==="v2"?encodeV2(t):
-    encodeV3(t);
+    encodeVersion.value==="v3"?encodeV3(t):
+    encodeV4(t);
 }
 
 function updateDecode() {
@@ -237,7 +268,8 @@ function updateDecode() {
   decodeOutput.textContent =
     decodeVersion.value==="v1"?decodeV1(t):
     decodeVersion.value==="v2"?decodeV2(t):
-    decodeV3(t);
+    decodeVersion.value==="v3"?decodeV3(t):
+    decodeV4(t);
 }
 
 encodeInput.oninput = updateEncode;
